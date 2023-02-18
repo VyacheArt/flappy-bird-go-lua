@@ -19,9 +19,11 @@ import (
 	_ "embed"
 	"flag"
 	"fmt"
+	lua "github.com/yuin/gopher-lua"
 	"image"
 	"image/color"
 	_ "image/png"
+	luar "layeh.com/gopher-luar"
 	"log"
 	"math"
 	"math/rand"
@@ -156,6 +158,8 @@ type Game struct {
 	audioContext *audio.Context
 	jumpPlayer   *audio.Player
 	hitPlayer    *audio.Player
+
+	lua *LuaModule
 }
 
 func NewGame() ebiten.Game {
@@ -193,6 +197,10 @@ func (g *Game) init() {
 	}
 	g.hitPlayer, err = g.audioContext.NewPlayer(jabD)
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	if g.lua, err = loadLuaModule("./my-mod.lua"); err != nil {
 		log.Fatal(err)
 	}
 }
@@ -235,6 +243,15 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 }
 
 func (g *Game) Update() error {
+	err := g.lua.state.CallByParam(lua.P{
+		Fn:      g.lua.update,
+		NRet:    0,
+		Protect: true,
+	})
+	if err != nil {
+		log.Printf("failed to call update: %e", err)
+	}
+
 	switch g.mode {
 	case ModeTitle:
 		if g.isKeyJustPressed() {
@@ -280,6 +297,15 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{0x80, 0xa0, 0xc0, 0xff})
+
+	err := g.lua.state.CallByParam(lua.P{
+		Fn:      g.lua.draw,
+		NRet:    0,
+		Protect: true,
+	}, luar.New(g.lua.state, screen))
+	if err != nil {
+		log.Printf("failed to call draw: %e", err)
+	}
 
 	g.drawTiles(screen)
 	if g.mode != ModeTitle {
