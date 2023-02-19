@@ -17,8 +17,11 @@ type LuaModule struct {
 
 func loadLuaModule(path string) (*LuaModule, error) {
 	L := lua.NewState()
+
+	//exported types
 	L.SetGlobal("ColorRGBA", luar.NewType(L, color.RGBA{}))
 
+	//exported functions
 	L.SetGlobal("GetWindowSize", luar.New(L, func() image.Point {
 		width, height := ebiten.WindowSize()
 		return image.Point{X: width, Y: height}
